@@ -1,5 +1,5 @@
 struct LeadingEdge (ID, SlaveFaces, KnotVertex, LoneVertex)
-struct SolutionVertex (ID, GhostVertex, GhostEdge)
+struct SolutionVertex (ID, pos, GhostVertex, GhostEdge)
 
 fn lineLineIntersect p1 p2 p3 p4 = 
 (
@@ -140,7 +140,6 @@ fn start size=
 		verticesCount = EditPolyMod.GetNumVertices Pol
 		for  LeadingEdge in LeadingEdges do
 		(
-			print LeadingEdge
 			vec = (Pol.EditPolyMod.GetVertex LeadingEdge.LoneVertex) - (Pol.EditPolyMod.GetVertex LeadingEdge.KnotVertex)
 			vec = normalize vec
 			for SlaveFace in LeadingEdge.SlaveFaces do
@@ -165,62 +164,57 @@ fn start size=
 				toShell = getSimilarKnotDifferentEdge leadingEdges LeadingEdge.KnotVertex LeadingEdge.ID
 				for i=1 to toShell.Count do
 				(
-					
+					verticesCount = verticesCount+1
 					vertexID = toShell[i].LoneVertex
 					IDToRemove = findItem verticesOnFace vertexID
 					vertexData = Pol.EditPolyMod.GetVertex  vertexID
-					temp = SolutionVertex ID:verticesCount GhostVertex:vertexID GhostEdge:LeadingEdge.ID
+					finalpos1 = (vertexData + vec - selection[1].pos)
+					temp = SolutionVertex ID:verticesCount pos:finalpos1 GhostVertex:vertexID GhostEdge:LeadingEdge.ID
 					append createdVertices temp
 					verticesCount = verticesCount+1
-					finalpos = (vertexData + vec - selection[1].pos)
-					Pol.EditPolyMod.CreateVertex finalpos
-				)
-				toShell = getSimilarKnotDifferentEdge leadingEdges LeadingEdge.KnotVertex LeadingEdge.ID
-				for i=1 to toShell.Count do
-				(
 					vertexID = toShell[i].KnotVertex
 					IDToRemove = findItem verticesOnFace vertexID
 					vertexData = Pol.EditPolyMod.GetVertex  vertexID
-					temp = SolutionVertex ID:verticesCount GhostVertex:vertexID GhostEdge:LeadingEdge.ID
+					finalpos2 = (vertexData + vec - selection[1].pos)
+					temp = SolutionVertex ID:verticesCount pos:finalpos2 GhostVertex:vertexID GhostEdge:LeadingEdge.ID
 					append createdVertices temp
-					verticesCount = verticesCount+1
-					finalpos = (vertexData + vec - selection[1].pos)
-					Pol.EditPolyMod.CreateVertex finalpos
+					
 				)
-				/*
-				for i=1 to verticesOnFace.Count do
-				(
-					vertexID = verticesOnFace[i]
-					vertexData = Pol.EditPolyMod.GetVertex  vertexID
-					finalpos = (vertexData + (normal * size) - selection[1].pos)
-					Pol.EditPolyMod.CreateVertex finalpos
-				)
-				*/
-				/*
-				NbVerticesInFace = Pol.EditPolyMod.GetFaceDegree SlaveFace
-				for i=1 to NbVerticesInFace do
-				(
-					vertexID = Pol.EditPolyMod.GetFaceVertex SlaveFace i
-					vertexData = Pol.EditPolyMod.GetVertex  vertexID
-					finalpos = (vertexData + vec - selection[1].pos)
-					Pol.EditPolyMod.CreateVertex finalpos
-				)
-				*/
 			)
 		)
-		Pol.EditPolyMod.Commit()
+		
 		for createdVertex in createdVertices do
 		(
 			similarGhostVertex = getSimilarGhost CreatedVertices createdVertex
+			
 			if similarGhostVertex.Count>1 then
 			(
 				similarGhostEdge=#()
 				for i=1 to similarGhostVertex.Count do
 				(
-					append similarGhostEdge (getSimilarGhostEdge CreatedVertices createdVertex)
+					temp = getSimilarGhostEdge CreatedVertices similarGhostVertex[i]
+					append similarGhostEdge temp
 				)
+				correctedPos = lineLineIntersect similarGhostEdge[1][2].pos similarGhostEdge[1][1].pos similarGhostEdge[2][2].pos similarGhostEdge[2][1].pos
+				createdVertex.pos = correctedPos
 			)
 		)
+		for vertex in createdVertices do
+		(
+			Pol.EditPolyMod.CreateVertex vertex.pos
+		)
+		for i=1 to createdVertices.Count-1 do
+		(
+			IDs=#()
+			append IDs createdVertices[i].ID
+			append IDs createdVertices[i+1].ID
+			append IDs createdVertices[i+1].ghostVertex
+			append IDs createdVertices[i].ghostVertex
+			print IDs
+			Pol.EditPolyMod.CreateFace IDs
+		)
+		--Pol.EditPolyMod.CreateVertex finalpos
+		Pol.EditPolyMod.Commit()
 	)
 )
 start 5
